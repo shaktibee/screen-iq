@@ -1,0 +1,33 @@
+{
+  "name": "screeniq-backend",
+  "version": "1.0.0",
+  "description": "ScreenIQ SaaS API - Node.js + Express + PostgreSQL",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "db:migrate": "node src/db/migrate.js",
+    "db:migrate:programming": "node src/db/migrate-programming.js",
+    "db:seed": "node src/db/seed.js",
+    "db:seed:movies": "node src/db/seed-movies.js",
+    "db:backfill-turnaround": "node src/db/backfill-turnaround.js",
+    "db:seed:schedule": "node src/db/seed-schedule.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "express-validator": "^7.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.13.0",
+    "xlsx": "^0.18.5",
+    "uuid": "^10.0.0",
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}
