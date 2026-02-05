@@ -1,22 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
-const nav = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/projects', label: 'Movies' },
-  { href: '/regions', label: 'Regions' },
-  { href: '/cinema-chains', label: 'Cinema Chains' },
-  { href: '/theaters', label: 'Theaters' },
-  { href: '/screens', label: 'Screens' },
-  { href: '/reports', label: 'Reports' },
-  { href: '/users', label: 'Users' },
-];
-
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
   const router = useRouter();
   const { user, organizationId, setOrganizationId, logout, isReady } = useAuth();
 
@@ -43,15 +31,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Link href="/dashboard" className="font-semibold">ScreenIQ</Link>
         </div>
         <nav className="p-2 flex-1">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`block px-3 py-2 rounded-lg mb-1 ${pathname === item.href ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
-            >
-              {item.label}
-            </Link>
-          ))}
+          <Link
+            href="/dashboard"
+            className="block px-3 py-2 rounded-lg mb-1 hover:bg-gray-800"
+          >
+            Home
+          </Link>
         </nav>
         <div className="p-3 border-t border-gray-700">
           {orgs.length > 1 && (
