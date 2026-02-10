@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -10,8 +11,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!isReady) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Loading…</p>
+      <div
+        className="min-h-screen flex items-center justify-center bg-gray-100"
+        style={{ minHeight: '100vh' }}
+      >
+        <p className="text-gray-700 text-lg">Loading…</p>
       </div>
     );
   }
@@ -23,22 +27,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const orgs = user.organizations || [];
   const currentOrgId = organizationId || orgs[0]?.organization_id;
+  const pathname = usePathname();
+
+  const navLink = (href: string, label: string) => (
+    <Link
+      href={href}
+      className={cn(
+        'block px-3 py-2 rounded-lg mb-1',
+        pathname === href ? 'bg-[#2d4a6f]' : 'hover:bg-[#2d4a6f]'
+      )}
+    >
+      {label}
+    </Link>
+  );
 
   return (
     <div className="min-h-screen flex">
-      <aside className="w-56 bg-gray-900 text-white flex flex-col">
-        <div className="p-4 border-b border-gray-700">
+      {/* Fixed sidebar - does not move when content or route changes */}
+      <aside className="fixed inset-y-0 left-0 z-30 w-56 shrink-0 bg-[#1e3a5f] text-white flex flex-col">
+        <div className="p-4 border-b border-[#2d4a6f] flex items-center gap-2">
+          <span className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-[#1e3a5f] font-bold">C</span>
           <Link href="/dashboard" className="font-semibold">ScreenIQ</Link>
         </div>
-        <nav className="p-2 flex-1">
-          <Link
-            href="/dashboard"
-            className="block px-3 py-2 rounded-lg mb-1 hover:bg-gray-800"
-          >
-            Home
-          </Link>
+        <nav className="p-2 flex-1 overflow-y-auto">
+          {navLink('/dashboard', 'Home')}
+          {navLink('/movies', 'Movies')}
+          {navLink('/programme/overview', 'Schedule overview')}
+          {navLink('/programme/new', 'Create programme')}
+          {navLink('/programming-dashboard', 'Programming Team')}
+          {navLink('/movie-parameters', 'Movie Parameters')}
+          {navLink('/cinema-dashboard', 'Cinema Dashboard')}
+          {navLink('/report', 'Reports')}
+          {navLink('/settings', 'Settings')}
         </nav>
-        <div className="p-3 border-t border-gray-700">
+        <div className="p-3 border-t border-[#2d4a6f] shrink-0">
           {orgs.length > 1 && (
             <select
               value={currentOrgId || ''}
@@ -62,7 +84,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
         </div>
       </aside>
-      <main className="flex-1 overflow-auto p-6 bg-gray-50">{children}</main>
+      {/* Main content offset by sidebar width */}
+      <div className="flex-1 flex flex-col min-h-screen pl-56">
+        <header className="h-14 shrink-0 bg-[#1e3a5f] border-b border-[#2d4a6f] flex items-center justify-end px-6">
+          <button type="button" className="w-9 h-9 rounded-full bg-[#2d4a6f] flex items-center justify-center text-white text-sm font-medium ring-2 ring-white/20">
+            U
+          </button>
+        </header>
+        <main className="flex-1 overflow-auto p-6 bg-gray-100 relative">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_#1e3a5f08_0%,transparent_50%)] pointer-events-none" />
+          <div className="relative">{children}</div>
+        </main>
+      </div>
     </div>
   );
 }

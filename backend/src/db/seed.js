@@ -34,8 +34,36 @@ async function seed() {
       [userId, orgId, roles['Admin']]
     );
 
-    console.log('Seed completed.');
-    console.log('Demo login: admin@demo.com / password123');
+    // Seed movies (for Movies screen: budget, sentiment, released vs upcoming)
+    const countRes = await client.query('SELECT COUNT(*)::int AS c FROM movies');
+    if (countRes.rows[0].c === 0) {
+      const movies = [
+        ['Stree 2', '2025-08-15', 'Hindi', 138, 'Horror Comedy', 85000000, 'positive', 'Sequel to the hit horror comedy Stree.'],
+        ['Bhool Bhulaiyaa 3', '2025-10-17', 'Hindi', 150, 'Horror Comedy', 120000000, 'positive', 'Third installment of the Bhool Bhulaiyaa franchise.'],
+        ['Jigra', '2024-09-27', 'Hindi', 132, 'Drama', 45000000, 'neutral', 'A story of resilience and bond between siblings.'],
+        ['Pushpa 2: The Rule', '2024-12-06', 'Telugu', 175, 'Action', 350000000, 'positive', 'Sequel to Pushpa: The Rise.'],
+        ['Kalki 2898 AD', '2024-06-27', 'Hindi', 181, 'Sci-Fi', 600000000, 'positive', 'Epic sci-fi set in the year 2898 AD.'],
+        ['Singham Again', '2024-10-02', 'Hindi', 158, 'Action', 200000000, 'positive', 'Latest in the Singham cop franchise.'],
+        ['Jawan', '2023-09-07', 'Hindi', 169, 'Action', 300000000, 'positive', 'A man fights for social justice.'],
+        ['Animal', '2023-12-01', 'Hindi', 201, 'Action Drama', 100000000, 'mixed', 'A father-son story with intense drama.'],
+        ['Pathaan', '2023-01-25', 'Hindi', 146, 'Action', 250000000, 'positive', 'Spy thriller in the YRF spy universe.'],
+        ['RRR', '2022-03-25', 'Telugu', 182, 'Action', 550000000, 'positive', 'Fictional tale of two Indian revolutionaries.'],
+        ['KGF Chapter 2', '2022-04-14', 'Kannada', 168, 'Action', 100000000, 'positive', 'Sequel to KGF, Rocky battles Adheera.'],
+        ['Brahmastra', '2022-09-09', 'Hindi', 167, 'Fantasy', 410000000, 'mixed', 'Superhero fantasy rooted in Indian mythology.'],
+        ['Kantara', '2022-09-30', 'Kannada', 148, 'Thriller', 16000000, 'positive', 'Folklore thriller set in coastal Karnataka.'],
+        ['Drishyam 2', '2022-11-18', 'Hindi', 140, 'Thriller', 50000000, 'positive', 'Sequel to Drishyam.'],
+        ['Saathi', '2025-11-07', 'Hindi', null, 'Drama', 60000000, 'neutral', 'Upcoming drama film.'],
+        ['Metro... In Dino', '2024-11-29', 'Hindi', 132, 'Romance', 55000000, 'neutral', 'Anthology of love stories.'],
+        ['The Fantastic Four: First Steps', '2025-07-25', 'Hindi', null, 'Sci-Fi', 280000000, 'positive', 'Marvel reboot of Fantastic Four.'],
+      ];
+      for (const m of movies) {
+        await client.query(
+          `INSERT INTO movies (title, release_date, language, duration_mins, genre, budget, sentiment, overview)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          m
+        );
+      }
+    }
   } finally {
     client.release();
     await pool.end();
