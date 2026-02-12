@@ -91,9 +91,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             U
           </button>
         </header>
-        <main className="flex-1 overflow-auto p-6 bg-gray-100 relative">
+        <main className="flex-1 min-w-0 overflow-auto p-6 bg-gray-100 relative flex flex-col">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_#1e3a5f08_0%,transparent_50%)] pointer-events-none" />
-          <div className="relative">{children}</div>
+          <div className="relative flex-1 min-w-0 w-full overflow-x-hidden flex flex-col">{children}</div>
         </main>
       </div>
     </div>

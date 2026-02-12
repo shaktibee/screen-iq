@@ -96,6 +96,8 @@ export type ScheduleOverviewRow = {
   theatreId: string;
   theatreName: string;
   screenCount: number;
+  /** Audi/screen names for this theatre (e.g. ["Audi 1", "Audi 2"]) */
+  theatreScreenNames?: string[] | null;
   showsPerTheatre: number;
   showsPerScreen: number;
   capacityUtilization: string;
@@ -152,4 +154,31 @@ export function fetchCalendar(
   params: ScheduleOverviewParams = {}
 ): Promise<CalendarItem[]> {
   return fetchScheduleOverview(params);
+}
+
+/** Theatre detail: screens and which movie runs on each screen for a given date */
+export type TheatreScheduleScreen = {
+  id: string;
+  name: string;
+  programme: {
+    programmeId: string;
+    movieId: string;
+    movieTitle: string;
+    startDate: string;
+    endDate: string | null;
+    durationMins: number | null;
+  } | null;
+};
+
+export type TheatreScheduleResponse = {
+  theatre: { id: string; name: string; screenCount: number; locationName: string };
+  screens: TheatreScheduleScreen[];
+};
+
+export function fetchTheatreSchedule(
+  theatreId: string,
+  date: string
+): Promise<TheatreScheduleResponse> {
+  const q = `?date=${encodeURIComponent(date)}`;
+  return api<TheatreScheduleResponse>(`/api/programme/theatres/${encodeURIComponent(theatreId)}/schedule${q}`);
 }

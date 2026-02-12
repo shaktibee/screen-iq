@@ -93,4 +93,4 @@ CREATE TABLE IF NOT EXISTS programme_theatres (
 CREATE INDEX IF NOT EXISTS idx_programmes_dates ON programmes(start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_programme_theatres_programme ON programme_theatres(programme_id);
 CREATE INDEX IF NOT EXISTS idx_programme_theatres_theatre ON programme_theatres(theatre_id);
-̦
+

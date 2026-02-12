@@ -18,11 +18,13 @@ import {
   fetchStates,
   fetchLocations,
   fetchTheatres,
+  fetchTheatreSchedule,
   type ScheduleOverviewRow,
   type Region,
   type State,
   type Location,
   type Theatre,
+  type TheatreScheduleResponse,
 } from '@/lib/programmeApi';
 import { getShowTimesForDay } from '@/lib/scheduleTimes';
 import { Loader2, Plus, X, Calendar, MapPin, Film, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -131,7 +133,19 @@ function isDayInProgramme(day: Date, startDate: string, endDate: string | null) 
 }
 
 type ViewMode = 'date' | 'time';
-type SelectedItem = { row: ScheduleOverviewRow; dayYMD: string } | null;
+type SelectedItem = { row: ScheduleOverviewRow; dayYMD: string; screenIndex?: number; screenName?: string } | null;
+
+/** Consistent colors per auditorium index (same index = same color across theatre column and calendar). */
+const AUDITORIUM_COLORS = [
+  { chip: 'bg-blue-100 text-blue-800 border-blue-300', card: 'bg-blue-50 border-l-blue-500 hover:bg-blue-100', ring: 'ring-blue-500' },
+  { chip: 'bg-emerald-100 text-emerald-800 border-emerald-300', card: 'bg-emerald-50 border-l-emerald-500 hover:bg-emerald-100', ring: 'ring-emerald-500' },
+  { chip: 'bg-amber-100 text-amber-800 border-amber-300', card: 'bg-amber-50 border-l-amber-500 hover:bg-amber-100', ring: 'ring-amber-500' },
+  { chip: 'bg-violet-100 text-violet-800 border-violet-300', card: 'bg-violet-50 border-l-violet-500 hover:bg-violet-100', ring: 'ring-violet-500' },
+  { chip: 'bg-rose-100 text-rose-800 border-rose-300', card: 'bg-rose-50 border-l-rose-500 hover:bg-rose-100', ring: 'ring-rose-500' },
+  { chip: 'bg-cyan-100 text-cyan-800 border-cyan-300', card: 'bg-cyan-50 border-l-cyan-500 hover:bg-cyan-100', ring: 'ring-cyan-500' },
+  { chip: 'bg-orange-100 text-orange-800 border-orange-300', card: 'bg-orange-50 border-l-orange-500 hover:bg-orange-100', ring: 'ring-orange-500' },
+  { chip: 'bg-teal-100 text-teal-800 border-teal-300', card: 'bg-teal-50 border-l-teal-500 hover:bg-teal-100', ring: 'ring-teal-500' },
+];
 
 const INITIAL_WINDOW = getPresetWindow('this_week');
 
@@ -148,6 +162,9 @@ export default function ScheduleOverviewPage() {
   const [viewLevel, setViewLevel] = useState<'theatre' | 'screen'>('theatre');
   const [viewMode, setViewMode] = useState<ViewMode>('date');
   const [selectedItem, setSelectedItem] = useState<SelectedItem>(null);
+  const [theatreDetail, setTheatreDetail] = useState<{ theatreId: string; theatreName: string; locationName: string } | null>(null);
+  const [theatreSchedule, setTheatreSchedule] = useState<TheatreScheduleResponse | null>(null);
+  const [theatreScheduleLoading, setTheatreScheduleLoading] = useState(false);
 
   const [regions, setRegions] = useState<Region[]>([]);
   const [states, setStates] = useState<State[]>([]);
@@ -275,6 +292,23 @@ export default function ScheduleOverviewPage() {
     loadSchedule();
   }, [loadSchedule]);
 
+  useEffect(() => {
+    if (!theatreDetail || !dateFrom) {
+      setTheatreSchedule(null);
+      return;
+    }
+    setTheatreScheduleLoading(true);
+    setTheatreSchedule(null);
+    fetchTheatreSchedule(theatreDetail.theatreId, dateFrom)
+      .then(setTheatreSchedule)
+      .catch(() => setTheatreSchedule(null))
+      .finally(() => setTheatreScheduleLoading(false));
+  }, [theatreDetail?.theatreId, dateFrom]);
+
+  const openTheatreDetail = useCallback((row: ScheduleOverviewRow) => {
+    setTheatreDetail({ theatreId: row.theatreId, theatreName: row.theatreName, locationName: row.locationName });
+  }, []);
+
   const uniqueTheatres = useMemo(() => {
     const seen = new Set<string>();
     return rows
@@ -303,9 +337,9 @@ export default function ScheduleOverviewPage() {
   }, [days]);
 
   return (
-    <div className="w-full max-w-[1600px] space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
+    <div className="w-full max-w-full min-w-0 overflow-x-hidden space-y-6 flex flex-col flex-1">
+      <div className="flex flex-wrap items-center justify-between gap-4 min-w-0">
+        <div className="min-w-0">
           <nav className="flex items-center gap-1.5 text-sm text-muted-foreground mb-1">
             <Link href="/dashboard" className="hover:text-[#1e3a5f]">Home</Link>
             <span aria-hidden>/</span>
@@ -316,7 +350,7 @@ export default function ScheduleOverviewPage() {
             Calendar view of programmes by theatre. Filter by region, city, or theatre.
           </p>
         </div>
-        <Link href="/programme/new">
+        <Link href="/programme/new" className="shrink-0">
           <Button className="bg-[#1e3a5f] hover:bg-[#2d4a6f]">
             <Plus className="mr-2 h-4 w-4" />
             Create programme
@@ -324,8 +358,8 @@ export default function ScheduleOverviewPage() {
         </Link>
       </div>
 
-      {/* Filters: location and view only */}
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[#2d4a6f]/20 bg-white px-4 py-2.5 shadow-sm">
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[#2d4a6f]/20 bg-white px-4 py-2.5 shadow-sm min-w-0">
         <div className="flex items-center gap-2">
           <Label className="text-xs text-muted-foreground shrink-0 w-12">Region</Label>
           <Select value={regionId || ALL_VALUE} onValueChange={(v) => { setRegionId(v === ALL_VALUE ? '' : v); setStateId(''); setLocationId(''); setTheatreId(''); }}>
@@ -410,8 +444,8 @@ export default function ScheduleOverviewPage() {
         </div>
       )}
 
-      <div className="flex gap-6 items-start">
-        <Card className={cn('border bg-white overflow-hidden flex-1 min-w-0', selectedItem && 'max-w-[calc(100%-340px)]')}>
+      <div className="flex gap-6 items-stretch min-w-0 w-full flex-1 min-h-0">
+        <Card className="border bg-white overflow-hidden flex-1 min-w-0 shrink flex flex-col min-h-0">
           {/* Compact calendar bar: view + scroll at top right of calendar */}
           <div className="flex flex-wrap items-center justify-end gap-3 border-b border-gray-200 bg-gray-50/80 px-4 py-2.5">
             <div className="flex items-center gap-2">
@@ -499,25 +533,27 @@ export default function ScheduleOverviewPage() {
               </button>
             </div>
           </div>
-          <CardContent className="p-0">
+          <CardContent className="p-0 flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
             {loading ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-[#1e3a5f]" />
               </div>
             ) : viewMode === 'time' ? (
-              <TimeView
-                rows={rows}
-                displayDays={displayDays}
-                getProgrammesForCell={getProgrammesForCell}
-                getShowTimesForDay={getShowTimesForDay}
-                toYMD={toYMD}
-                uniqueTheatres={uniqueTheatres}
-                viewLevel={viewLevel}
-                onSelect={(item) => setSelectedItem(item)}
-                selectedItem={selectedItem}
-              />
+              <div className="min-w-0 overflow-x-auto flex-1">
+                <TimeView
+                  rows={rows}
+                  displayDays={displayDays}
+                  getProgrammesForCell={getProgrammesForCell}
+                  getShowTimesForDay={getShowTimesForDay}
+                  toYMD={toYMD}
+                  uniqueTheatres={uniqueTheatres}
+                  viewLevel={viewLevel}
+                  onSelect={(item) => setSelectedItem(item)}
+                  selectedItem={selectedItem}
+                />
+              </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto min-w-0 flex-1">
                 <table className="w-full min-w-[800px] border-collapse">
                   <thead>
                     <tr className="border-b bg-[#1e3a5f]/5">
@@ -547,38 +583,71 @@ export default function ScheduleOverviewPage() {
                       uniqueTheatres.map((row) => (
                         <tr key={row.theatreId} className="border-b hover:bg-gray-50/50">
                           <td className="p-3 sticky left-0 bg-white z-10 border-r font-medium text-[#1e3a5f]">
-                            <div>{row.theatreName}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {row.locationName}
-                              {viewLevel === 'screen' && ` · ${row.screenCount} screens`}
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => openTheatreDetail(row)}
+                              className="text-left hover:bg-[#1e3a5f]/5 rounded px-1 -mx-1 py-0.5 -my-0.5 transition-colors w-full"
+                              title="View theatre details: screens and movies"
+                            >
+                              <div className="text-sm font-semibold underline decoration-dashed decoration-[#1e3a5f]/50 truncate">{row.theatreName}</div>
+                              <div className="text-xs text-muted-foreground">{row.locationName}</div>
+                              {row.theatreScreenNames && row.theatreScreenNames.length > 0 && (
+                                <div className="mt-1.5 flex flex-wrap gap-1">
+                                  {row.theatreScreenNames.map((name, idx) => {
+                                    const c = AUDITORIUM_COLORS[idx % AUDITORIUM_COLORS.length];
+                                    return (
+                                      <span
+                                        key={idx}
+                                        className={cn('inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium', c.chip)}
+                                        title={`${name} (color matches calendar)`}
+                                      >
+                                        {name}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </button>
                           </td>
                           {displayDays.map((day) => {
                             const programmes = getProgrammesForCell(row.theatreId, day);
                             const dayYMD = toYMD(day);
+                            const screenNames = row.theatreScreenNames ?? Array.from({ length: row.screenCount || 1 }, (_, i) => `Audi ${i + 1}`);
+                            const screenCount = Math.max(screenNames.length, programmes.length, 1);
                             return (
                               <td key={dayYMD} className="p-2 align-top border-r last:border-r-0 min-w-[160px]">
                                 <div className="flex flex-col gap-1.5">
-                                  {programmes.map((p) => {
+                                  {Array.from({ length: screenCount }, (_, screenIdx) => {
+                                    const p = programmes[screenIdx] ?? null;
+                                    const screenName = screenNames[screenIdx] ?? `Audi ${screenIdx + 1}`;
+                                    const c = AUDITORIUM_COLORS[screenIdx % AUDITORIUM_COLORS.length];
+                                    const isSelected = selectedItem?.row.programmeId === p?.programmeId && selectedItem?.row.theatreId === row.theatreId && selectedItem?.dayYMD === dayYMD && selectedItem?.screenIndex === screenIdx;
+                                    if (!p) {
+                                      return (
+                                        <div key={screenIdx} className={cn('rounded px-2 py-1.5 text-xs border-l-2 border-gray-200 bg-gray-50/50 text-muted-foreground')}>
+                                          <span className="font-medium">{screenName}</span>
+                                          <span className="ml-1">—</span>
+                                        </div>
+                                      );
+                                    }
                                     const times = getShowTimesForDay(p, dayYMD);
-                                    const isSelected = selectedItem?.row.programmeId === p.programmeId && selectedItem?.row.theatreId === p.theatreId && selectedItem?.dayYMD === dayYMD;
                                     return (
                                       <button
                                         type="button"
-                                        key={`${p.programmeId}-${p.theatreId}`}
-                                        onClick={() => setSelectedItem({ row: p, dayYMD })}
+                                        key={`${screenIdx}-${p.programmeId}-${p.theatreId}`}
+                                        onClick={() => setSelectedItem({ row: p, dayYMD, screenIndex: screenIdx, screenName })}
                                         className={cn(
-                                          'rounded px-2 py-1.5 text-xs border-l-2 text-left w-full transition-colors',
-                                          'bg-[#1e3a5f]/5 border-[#1e3a5f]/40 text-gray-800 hover:bg-[#1e3a5f]/15',
-                                          isSelected && 'ring-2 ring-[#1e3a5f] bg-[#1e3a5f]/20'
+                                          'rounded px-2 py-1.5 text-xs border-l-4 text-left w-full transition-colors',
+                                          c.card,
+                                          isSelected && `ring-2 ${c.ring}`
                                         )}
+                                        title={`${screenName}: ${p.movieTitle} · ${p.showsPerTheatre} shows`}
                                       >
-                                        <div className="font-medium truncate" title={p.movieTitle}>
+                                        <div className="font-medium truncate text-gray-900" title={p.movieTitle}>
                                           {p.movieTitle}
                                         </div>
                                         <div className="text-muted-foreground">
                                           {p.showsPerTheatre} show{p.showsPerTheatre !== 1 ? 's' : ''}
-                                          {p.showsPerScreen > 1 && ` · ${p.showsPerScreen}/screen`}
                                         </div>
                                         {times.length > 0 && (
                                           <div className="mt-1 text-[10px] text-muted-foreground flex flex-wrap gap-x-1 gap-y-0.5" title={times.join(', ')}>
@@ -604,70 +673,132 @@ export default function ScheduleOverviewPage() {
           </CardContent>
         </Card>
 
-        {selectedItem && (
-          <Card className="w-[320px] shrink-0 sticky top-6 border bg-white shadow-lg">
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <h3 className="text-sm font-semibold text-[#1e3a5f]">Details</h3>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedItem(null)} aria-label="Close">
-                <X className="h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent className="pt-0 space-y-4">
-              <div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                  <Film className="h-3.5 w-3.5" />
-                  Movie
-                </div>
-                <p className="font-medium text-gray-900">{selectedItem.row.movieTitle}</p>
-                {selectedItem.row.movieLanguage && (
-                  <p className="text-xs text-muted-foreground">{selectedItem.row.movieLanguage}</p>
-                )}
-                {selectedItem.row.durationMins != null && (
-                  <p className="text-xs text-muted-foreground">{selectedItem.row.durationMins} min</p>
-                )}
-              </div>
-              <div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                  <MapPin className="h-3.5 w-3.5" />
-                  Venue
-                </div>
-                <p className="font-medium text-gray-900">{selectedItem.row.theatreName}</p>
-                <p className="text-xs text-muted-foreground">{selectedItem.row.locationName}</p>
-                {selectedItem.row.regionName && (
-                  <p className="text-xs text-muted-foreground">{selectedItem.row.regionName} → {selectedItem.row.stateName}</p>
-                )}
-              </div>
-              <div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                  <Calendar className="h-3.5 w-3.5" />
-                  Date
-                </div>
-                <p className="text-sm text-gray-900">
-                  {new Date(selectedItem.dayYMD).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Programme: {selectedItem.row.startDate}
-                  {selectedItem.row.endDate ? ` – ${selectedItem.row.endDate}` : ' onwards'}
-                </p>
-              </div>
-              <div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                  <Clock className="h-3.5 w-3.5" />
-                  Show times
-                </div>
-                <p className="text-sm text-gray-900">
-                  {getShowTimesForDay(selectedItem.row, selectedItem.dayYMD).join(', ') || '—'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {selectedItem.row.showsPerTheatre} show{selectedItem.row.showsPerTheatre !== 1 ? 's' : ''} · TAT {selectedItem.row.tatMins} min
-                  {selectedItem.row.timeSlotPattern && ` · ${selectedItem.row.timeSlotPattern}`}
-                </p>
-              </div>
-              <div className="pt-2 border-t text-xs text-muted-foreground">
-                Capacity: {selectedItem.row.capacityUtilization} · {selectedItem.row.screenCount} screens
-              </div>
-            </CardContent>
-          </Card>
+        {(theatreDetail || selectedItem) && (
+          <div className="w-[320px] shrink-0 self-stretch flex flex-col min-h-0">
+            {theatreDetail ? (
+              <Card className="border bg-white shadow-lg flex flex-col h-full min-h-0">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between shrink-0">
+                  <h3 className="text-sm font-semibold text-[#1e3a5f]">Theatre details</h3>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setTheatreDetail(null); setTheatreSchedule(null); }} aria-label="Close">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent className="pt-0 space-y-3 overflow-y-auto flex-1 min-h-0">
+                  <div>
+                    <div className="font-medium text-gray-900">{theatreDetail.theatreName}</div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {theatreDetail.locationName}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    For {dateFrom} — which movie runs on each screen
+                  </p>
+                  {theatreScheduleLoading ? (
+                    <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading…
+                    </div>
+                  ) : theatreSchedule ? (
+                    <div className="space-y-1.5">
+                      {theatreSchedule.screens.map((sc) => (
+                        <div
+                          key={sc.id}
+                          className="flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-gray-50/50 px-3 py-2 text-sm"
+                        >
+                          <span className="font-medium text-[#1e3a5f] shrink-0 w-[72px]">{sc.name}</span>
+                          <span className="truncate text-gray-800 min-w-0" title={sc.programme?.movieTitle}>
+                            {sc.programme ? (
+                              <>
+                                <Film className="h-3.5 w-3.5 inline shrink-0 mr-1 text-muted-foreground" />
+                                {sc.programme.movieTitle}
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground py-2">No schedule data.</p>
+                  )}
+                </CardContent>
+              </Card>
+            ) : selectedItem ? (
+              <Card className="border bg-white shadow-lg flex flex-col h-full min-h-0">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between shrink-0">
+                  <h3 className="text-sm font-semibold text-[#1e3a5f]">Details</h3>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelectedItem(null)} aria-label="Close">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent className="pt-0 space-y-4 overflow-y-auto flex-1 min-h-0">
+                  {selectedItem.screenName != null && (
+                    <div className="rounded-md border bg-gray-50 px-3 py-2 text-sm">
+                      <p className="font-medium text-[#1e3a5f]">{selectedItem.screenName}</p>
+                      <p className="text-muted-foreground mt-0.5">
+                        Running {selectedItem.row.showsPerTheatre} show{selectedItem.row.showsPerTheatre !== 1 ? 's' : ''} of {selectedItem.row.movieTitle}
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                      <Film className="h-3.5 w-3.5" />
+                      Movie
+                    </div>
+                    <p className="font-medium text-gray-900">{selectedItem.row.movieTitle}</p>
+                    {selectedItem.row.movieLanguage && (
+                      <p className="text-xs text-muted-foreground">{selectedItem.row.movieLanguage}</p>
+                    )}
+                    {selectedItem.row.durationMins != null && (
+                      <p className="text-xs text-muted-foreground">{selectedItem.row.durationMins} min</p>
+                    )}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                      <MapPin className="h-3.5 w-3.5" />
+                      Venue
+                    </div>
+                    <p className="font-medium text-gray-900">{selectedItem.row.theatreName}</p>
+                    <p className="text-xs text-muted-foreground">{selectedItem.row.locationName}</p>
+                    {selectedItem.row.regionName && (
+                      <p className="text-xs text-muted-foreground">{selectedItem.row.regionName} → {selectedItem.row.stateName}</p>
+                    )}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                      <Calendar className="h-3.5 w-3.5" />
+                      Date
+                    </div>
+                    <p className="text-sm text-gray-900">
+                      {new Date(selectedItem.dayYMD).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Programme: {selectedItem.row.startDate}
+                      {selectedItem.row.endDate ? ` – ${selectedItem.row.endDate}` : ' onwards'}
+                    </p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      Show times
+                    </div>
+                    <p className="text-sm text-gray-900">
+                      {getShowTimesForDay(selectedItem.row, selectedItem.dayYMD).join(', ') || '—'}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {selectedItem.row.showsPerTheatre} show{selectedItem.row.showsPerTheatre !== 1 ? 's' : ''} · TAT {selectedItem.row.tatMins} min
+                      {selectedItem.row.timeSlotPattern && ` · ${selectedItem.row.timeSlotPattern}`}
+                    </p>
+                  </div>
+                  <div className="pt-2 border-t text-xs text-muted-foreground">
+                    Capacity: {selectedItem.row.capacityUtilization} · {selectedItem.row.screenCount} screens
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+          </div>
         )}
       </div>
 

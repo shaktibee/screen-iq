@@ -8,8 +8,13 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "db:migrate": "node src/db/migrate.js",
+    "db:migrate-programme": "node src/db/migrate-programme.js",
+    "db:migrate-screens": "node src/db/migrate-screens.js",
+    "db:migrate-programme-screens": "node src/db/migrate-programme-screens.js",
     "db:seed": "node src/db/seed.js",
     "db:seed-programming": "node src/db/seed-programming.js",
+    "db:seed-programmes": "node src/db/seed-programmes.js",
+    "db:seed-screens": "node src/db/seed-screens.js",
     "db:seed-movies": "node src/db/seed-movies.js",
     "db:migrate-movies-buzz": "node src/db/migrate-movies-buzz.js"
   },

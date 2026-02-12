@@ -18,13 +18,15 @@ import {
   fetchLocations,
   fetchTheatres,
   fetchCalendar,
+  fetchTheatreSchedule,
   type Region,
   type Location,
   type Theatre,
   type CalendarItem,
+  type TheatreScheduleResponse,
 } from '@/lib/programmeApi';
 import { cn } from '@/lib/utils';
-import { Calendar, Loader2, Film } from 'lucide-react';
+import { Calendar, Loader2, Film, MapPin, X } from 'lucide-react';
 
 type DatePreset = 'today' | 'yesterday' | 'this_week' | 'last_week' | 'this_month' | 'custom';
 
@@ -137,6 +139,9 @@ export default function ScheduleOverviewPage() {
   const [items, setItems] = useState<CalendarItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [theatreDetail, setTheatreDetail] = useState<{ theatreId: string; theatreName: string; sublabel: string } | null>(null);
+  const [theatreSchedule, setTheatreSchedule] = useState<TheatreScheduleResponse | null>(null);
+  const [theatreScheduleLoading, setTheatreScheduleLoading] = useState(false);
 
   const { start, end } = useMemo(
     () => getRange(preset, customStart, customEnd),
@@ -235,6 +240,23 @@ export default function ScheduleOverviewPage() {
     loadCalendar();
   }, [loadCalendar]);
 
+  useEffect(() => {
+    if (!theatreDetail || !start) {
+      setTheatreSchedule(null);
+      return;
+    }
+    setTheatreScheduleLoading(true);
+    setTheatreSchedule(null);
+    fetchTheatreSchedule(theatreDetail.theatreId, start)
+      .then(setTheatreSchedule)
+      .catch(() => setTheatreSchedule(null))
+      .finally(() => setTheatreScheduleLoading(false));
+  }, [theatreDetail?.theatreId, start]);
+
+  const openTheatreDetail = useCallback((id: string, name: string, sublabel: string) => {
+    setTheatreDetail({ theatreId: id, theatreName: name, sublabel });
+  }, []);
+
   const toggleRegion = (id: string) => {
     setRegionIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -258,6 +280,7 @@ export default function ScheduleOverviewPage() {
           label: first.theatreName,
           sublabel: `${first.locationName} · ${first.regionName}`,
           screenCount: first.screenCount,
+          theatreScreenNames: first.theatreScreenNames ?? undefined,
           items: list,
         };
       });
@@ -272,11 +295,13 @@ export default function ScheduleOverviewPage() {
     }
     return Array.from(byTheatreScreen.entries()).map(([key, { screenNum, items: list }]) => {
       const first = list[0];
+      const screenName = first.theatreScreenNames?.[screenNum - 1] ?? `Screen ${screenNum}`;
       return {
         id: key,
-        label: `${first.theatreName} – Screen ${screenNum}`,
+        label: `${first.theatreName} – ${screenName}`,
         sublabel: first.locationName,
         screenCount: 1,
+        theatreScreenNames: first.theatreScreenNames ?? undefined,
         items: list,
       };
     });
@@ -483,8 +508,21 @@ export default function ScheduleOverviewPage() {
                   {rows.map((row) => (
                     <tr key={row.id} className="border-b hover:bg-gray-50/50">
                       <td className="p-3 sticky left-0 z-10 bg-white border-r hover:bg-gray-50/50">
-                        <div className="font-medium text-gray-900">{row.label}</div>
-                        <div className="text-xs text-muted-foreground">{row.sublabel}</div>
+                        <button
+                          type="button"
+                          onClick={() => openTheatreDetail(viewMode === 'theatre' ? row.id : row.id.split('@')[0], row.items[0]?.theatreName ?? row.label, row.sublabel)}
+                          className="text-left w-full hover:bg-gray-100 rounded px-1 -mx-1 py-0.5 -my-0.5 transition-colors"
+                          title="View theatre details: screens and movies"
+                        >
+                          <div className="font-medium text-gray-900">{row.label}</div>
+                          <div className="text-xs text-muted-foreground">{row.sublabel}</div>
+                          {viewMode === 'theatre' && row.theatreScreenNames && row.theatreScreenNames.length > 0 && (
+                            <div className="text-[11px] text-muted-foreground mt-1" title={row.theatreScreenNames.join(', ')}>
+                              {row.theatreScreenNames.slice(0, 5).join(' · ')}
+                              {row.theatreScreenNames.length > 5 && ` +${row.theatreScreenNames.length - 5}`}
+                            </div>
+                          )}
+                        </button>
                       </td>
                       {days.map((day) => {
                         const cellItems = row.items.filter((item) => programmeActiveOnDay(item, day));
@@ -521,6 +559,58 @@ export default function ScheduleOverviewPage() {
           )}
         </CardContent>
       </Card>
+
+      {theatreDetail && (
+        <Card className="border bg-white">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <h2 className="text-lg font-semibold text-[#1e3a5f]">Theatre details</h2>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setTheatreDetail(null); setTheatreSchedule(null); }} aria-label="Close">
+              <X className="h-4 w-4" />
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <div className="font-medium text-gray-900">{theatreDetail.theatreName}</div>
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" />
+                {theatreDetail.sublabel}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              For {start} — which movie runs on each screen
+            </p>
+            {theatreScheduleLoading ? (
+              <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading…
+              </div>
+            ) : theatreSchedule ? (
+              <div className="space-y-1.5">
+                {theatreSchedule.screens.map((sc) => (
+                  <div
+                    key={sc.id}
+                    className="flex items-center justify-between gap-2 rounded-md border border-gray-200 bg-gray-50/50 px-3 py-2 text-sm"
+                  >
+                    <span className="font-medium text-[#1e3a5f] shrink-0 w-[72px]">{sc.name}</span>
+                    <span className="truncate text-gray-800 min-w-0" title={sc.programme?.movieTitle}>
+                      {sc.programme ? (
+                        <>
+                          <Film className="h-3.5 w-3.5 inline shrink-0 mr-1 text-muted-foreground" />
+                          {sc.programme.movieTitle}
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground py-2">No schedule data.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
