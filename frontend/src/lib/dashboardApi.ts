@@ -5,7 +5,7 @@
  * returning the shapes the frontend expects so type-checking and
  * build succeed. Data will often be empty until the backend is filled in.
  */
-import { api } from './api';
+import { api } from "./api";
 
 /**
  * ----- Reports -----
@@ -50,12 +50,14 @@ export type ReportData = {
 
 // Legacy helpers – kept for backwards compatibility
 export async function getReportSummary(filters?: Record<string, string>) {
-  const params = filters ? `?${new URLSearchParams(filters).toString()}` : '';
-  return api<{ revenue: number; shows: number; utilization: number }>(`/api/reports/summary${params}`);
+  const params = filters ? `?${new URLSearchParams(filters).toString()}` : "";
+  return api<{ revenue: number; shows: number; utilization: number }>(
+    `/api/reports/summary${params}`,
+  );
 }
 
 export async function getReportBreakdown(filters?: Record<string, string>) {
-  const params = filters ? `?${new URLSearchParams(filters).toString()}` : '';
+  const params = filters ? `?${new URLSearchParams(filters).toString()}` : "";
   return api<unknown[]>(`/api/reports/breakdown${params}`);
 }
 
@@ -69,6 +71,7 @@ export async function fetchReportData(days: number): Promise<ReportData> {
   // We pass { days } as a filter so the backend can evolve later.
   const filters = { days: String(days) };
   const summary = await getReportSummary(filters);
+
   const _breakdown = await getReportBreakdown(filters);
 
   // For now, synthesize minimal, consistent data.
@@ -98,7 +101,12 @@ export type RebalanceRow = {
   shows: number;
   ticketsSold: number;
   occupancy: number;
-  status: 'Needs Rebalance' | 'Pending Approval' | 'Approved' | 'Rejected' | string;
+  status:
+    | "Needs Rebalance"
+    | "Pending Approval"
+    | "Approved"
+    | "Rejected"
+    | string;
 };
 
 export type CityBreakdownRow = {
@@ -109,85 +117,94 @@ export type CityBreakdownRow = {
 
 // Legacy helper (list) – retained
 export async function getProgrammingRebalance(query?: Record<string, string>) {
-  const params = query ? `?${new URLSearchParams(query).toString()}` : '';
+  const params = query ? `?${new URLSearchParams(query).toString()}` : "";
   return api<RebalanceRow[]>(`/api/programming/rebalance${params}`);
 }
 
 // Legacy helper (summary) – retained
 export async function getProgrammingSummary(query?: Record<string, string>) {
-  const params = query ? `?${new URLSearchParams(query).toString()}` : '';
-  return api<{ showsNeedingRebalancing?: number; pendingApprovals?: number }>(`/api/programming/summary${params}`);
+  const params = query ? `?${new URLSearchParams(query).toString()}` : "";
+  return api<{ showsNeedingRebalancing?: number; pendingApprovals?: number }>(
+    `/api/programming/summary${params}`,
+  );
 }
 
 export async function fetchProgrammingCities(): Promise<string[]> {
-  return api<string[]>('/api/programming/cities');
+  return api<string[]>("/api/programming/cities");
 }
 
 export async function fetchProgrammingTheatres(
-  city: string
+  city: string,
 ): Promise<{ id: string; name: string }[]> {
   const params = new URLSearchParams();
-  if (city) params.set('city', city);
-  const q = params.toString() ? `?${params.toString()}` : '';
+  if (city) params.set("city", city);
+  const q = params.toString() ? `?${params.toString()}` : "";
   return api<{ id: string; name: string }[]>(`/api/programming/theatres${q}`);
 }
 
-export async function fetchRebalanceList(
-  query?: { city?: string; theatre?: string; day?: string }
-): Promise<RebalanceRow[]> {
+export async function fetchRebalanceList(query?: {
+  city?: string;
+  theatre?: string;
+  day?: string;
+}): Promise<RebalanceRow[]> {
   const params = query
     ? `?${new URLSearchParams(
         Object.fromEntries(
-          Object.entries(query).filter(([_, v]) => v != null && v !== '')
-        )
+          Object.entries(query).filter(([_, v]) => v != null && v !== ""),
+        ),
       ).toString()}`
-    : '';
+    : "";
   return api<RebalanceRow[]>(`/api/programming/rebalance${params}`);
 }
 
-export async function fetchProgrammingSummary(
-  query?: { city?: string; theatre?: string; day?: string }
-): Promise<{ showsNeedingRebalancing: number; pendingApprovals: number }> {
+export async function fetchProgrammingSummary(query?: {
+  city?: string;
+  theatre?: string;
+  day?: string;
+}): Promise<{ showsNeedingRebalancing: number; pendingApprovals: number }> {
   const params = query
     ? `?${new URLSearchParams(
         Object.fromEntries(
-          Object.entries(query).filter(([_, v]) => v != null && v !== '')
-        )
+          Object.entries(query).filter(([_, v]) => v != null && v !== ""),
+        ),
       ).toString()}`
-    : '';
-  const data = await api<{ showsNeedingRebalancing?: number; pendingApprovals?: number }>(
-    `/api/programming/summary${params}`
-  );
+    : "";
+  const data = await api<{
+    showsNeedingRebalancing?: number;
+    pendingApprovals?: number;
+  }>(`/api/programming/summary${params}`);
   return {
     showsNeedingRebalancing: data.showsNeedingRebalancing ?? 0,
     pendingApprovals: data.pendingApprovals ?? 0,
   };
 }
 
-export async function fetchCityBreakdown(
-  query?: { city?: string; theatre?: string; day?: string }
-): Promise<CityBreakdownRow[]> {
+export async function fetchCityBreakdown(query?: {
+  city?: string;
+  theatre?: string;
+  day?: string;
+}): Promise<CityBreakdownRow[]> {
   const params = query
     ? `?${new URLSearchParams(
         Object.fromEntries(
-          Object.entries(query).filter(([_, v]) => v != null && v !== '')
-        )
+          Object.entries(query).filter(([_, v]) => v != null && v !== ""),
+        ),
       ).toString()}`
-    : '';
+    : "";
   return api<CityBreakdownRow[]>(`/api/programming/city-breakdown${params}`);
 }
 
 export async function approveRebalance(id: string): Promise<void> {
   await api(`/api/programming/rebalance/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ action: 'approve' }),
+    method: "PATCH",
+    body: JSON.stringify({ action: "approve" }),
   });
 }
 
 export async function rejectRebalance(id: string): Promise<void> {
   await api(`/api/programming/rebalance/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ action: 'reject' }),
+    method: "PATCH",
+    body: JSON.stringify({ action: "reject" }),
   });
 }
 
@@ -220,19 +237,19 @@ export type ReplacementRow = {
 };
 
 export async function fetchCinemaLocations(): Promise<CinemaLocation[]> {
-  return api<CinemaLocation[]>('/api/cinema/locations');
+  return api<CinemaLocation[]>("/api/cinema/locations");
 }
 
 export async function fetchSchedule(
   locationId: string,
-  day?: string
+  day?: string,
 ): Promise<ScheduleRow[]> {
   const params = new URLSearchParams();
-  if (locationId) params.set('locationId', locationId);
+  if (locationId) params.set("locationId", locationId);
   // Backend expects `date`, but since it is a stub we just pass the
   // day string through when present.
-  if (day) params.set('date', day);
-  const q = params.toString() ? `?${params.toString()}` : '';
+  if (day) params.set("date", day);
+  const q = params.toString() ? `?${params.toString()}` : "";
   return api<ScheduleRow[]>(`/api/cinema/schedule${q}`);
 }
 
